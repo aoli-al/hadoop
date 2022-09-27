@@ -121,6 +121,7 @@ import org.apache.hadoop.thirdparty.com.google.common.base.Joiner;
 import org.apache.hadoop.util.Preconditions;
 
 import static org.apache.hadoop.log.LogThrottlingHelper.LogAction;
+import static org.apache.hadoop.util.Time.now;
 
 @InterfaceAudience.Private
 @InterfaceStability.Evolving
@@ -157,6 +158,23 @@ public class FSEditLogLoader {
   long loadFSEdits(EditLogInputStream edits, long expectedStartingTxId)
       throws IOException {
     return loadFSEdits(edits, expectedStartingTxId, Long.MAX_VALUE, null, null);
+  }
+
+  long loadFSEdits(EditLogInputStream edits, long expectedStartingTxId,
+                   MetaRecoveryContext recovery, StartupOption startupOption) throws IOException {
+    fsNamesys.writeLock();
+    try {
+      long startTime = now();
+      long numEdits = loadEditRecords(edits, false,
+              expectedStartingTxId, startupOption, recovery);
+      FSImage.LOG.info("Edits file " + edits.getName()
+              + " of size " + edits.length() + " edits # " + numEdits
+              + " loaded in " + (now()-startTime)/1000 + " seconds");
+      return numEdits;
+    } finally {
+      edits.close();
+      fsNamesys.writeUnlock();
+    }
   }
 
   /**
@@ -234,10 +252,15 @@ public class FSEditLogLoader {
     Counter counter = prog.getCounter(Phase.LOADING_EDITS, step);
     long lastLogTime = timer.monotonicNow();
     long lastInodeId = fsNamesys.dir.getLastInodeId();
+    int i = 0;
     
     try {
       while (true) {
         try {
+          i += 1;
+          if (i == 2) {
+            CheckpointFaultInjector.getInstance().duringMerge();
+          }
           FSEditLogOp op;
           try {
             op = in.readOp();

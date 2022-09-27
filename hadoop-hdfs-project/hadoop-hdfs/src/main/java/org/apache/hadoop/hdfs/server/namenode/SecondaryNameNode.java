@@ -425,13 +425,13 @@ public class SecondaryNameNode implements Runnable,
               dstImage.saveDigestAndRenameCheckpointImage(NameNodeFile.IMAGE,
                   sig.mostRecentCheckpointTxId, downloadedHash);
             }
-        
+
             // get edits file
             for (RemoteEditLog log : manifest.getLogs()) {
               TransferFsImage.downloadEditsToStorage(
                   nnHostPort, log, dstImage.getStorage());
             }
-        
+
             // true if we haven't loaded all the transactions represented by the
             // downloaded fsimage.
             return dstImage.getLastAppliedTxId() < sig.mostRecentCheckpointTxId;
@@ -557,16 +557,20 @@ public class SecondaryNameNode implements Runnable,
 
     // Fetch fsimage and edits. Reload the image if previous merge failed.
     loadImage |= downloadCheckpointFiles(
-        fsName, checkpointImage, sig, manifest) |
-        checkpointImage.hasMergeError();
-    try {
-      doMerge(sig, manifest, loadImage, checkpointImage, namesystem);
-    } catch (IOException ioe) {
-      // A merge error occurred. The in-memory file system state may be
-      // inconsistent, so the image and edits need to be reloaded.
-      checkpointImage.setMergeError();
-      throw ioe;
-    }
+            fsName, checkpointImage, sig, manifest);
+    System.out.println("LALALALALALALALALAAL: " + loadImage);
+    doMerge(sig, manifest, loadImage, checkpointImage, namesystem);
+//    loadImage |= downloadCheckpointFiles(
+//        fsName, checkpointImage, sig, manifest) |
+//        checkpointImage.hasMergeError();
+//    try {
+//      doMerge(sig, manifest, loadImage, checkpointImage, namesystem);
+//    } catch (IOException ioe) {
+//      // A merge error occurred. The in-memory file system state may be
+//      // inconsistent, so the image and edits need to be reloaded.
+//      checkpointImage.setMergeError();
+//      throw ioe;
+//    }
     // Clear any error since merge was successful.
     checkpointImage.clearMergeError();
 
@@ -1102,8 +1106,8 @@ public class SecondaryNameNode implements Runnable,
       }
       dstNamesystem.imageLoadComplete();
     }
-    // error simulation code for junit test
-    CheckpointFaultInjector.getInstance().duringMerge();   
+//    // error simulation code for junit test
+//    CheckpointFaultInjector.getInstance().duringMerge();
 
     Checkpointer.rollForwardByApplyingLogs(manifest, dstImage, dstNamesystem);
     // The following has the side effect of purging old fsimages/edit logs.

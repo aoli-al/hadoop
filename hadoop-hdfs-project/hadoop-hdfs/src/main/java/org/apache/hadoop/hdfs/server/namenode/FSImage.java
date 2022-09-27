@@ -37,6 +37,7 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.apache.hadoop.hdfs.protocol.HdfsConstants;
 import org.apache.hadoop.util.ShutdownHookManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -903,32 +904,42 @@ public class FSImage implements Closeable {
       
       // Load latest edits
       for (EditLogInputStream editIn : editStreams) {
-        LogAction logAction = loadEditLogHelper.record();
-        if (logAction.shouldLog()) {
-          String logSuppressed = "";
-          if (logAction.getCount() > 1) {
-            logSuppressed = "; suppressed logging for " +
-                (logAction.getCount() - 1) + " edit reads";
-          }
-          LOG.info("Reading " + editIn + " expecting start txid #" +
-              (lastAppliedTxId + 1) + logSuppressed);
-        }
+        LOG.info("Reading " + editIn + " expecting start txid #" +
+                (lastAppliedTxId + 1));
         try {
-          remainingReadTxns -= loader.loadFSEdits(editIn, lastAppliedTxId + 1,
-                  remainingReadTxns, startOpt, recovery);
+          loader.loadFSEdits(editIn, lastAppliedTxId + 1, recovery, startOpt);
         } finally {
           // Update lastAppliedTxId even in case of error, since some ops may
           // have been successfully applied before the error.
           lastAppliedTxId = loader.getLastAppliedTxId();
         }
-        // If we are in recovery mode, we may have skipped over some txids.
-        if (editIn.getLastTxId() != HdfsServerConstants.INVALID_TXID
-            && recovery != null) {
-          lastAppliedTxId = editIn.getLastTxId();
-        }
-        if (remainingReadTxns <= 0) {
-          break;
-        }
+
+//        LogAction logAction = loadEditLogHelper.record();
+//        if (logAction.shouldLog()) {
+//          String logSuppressed = "";
+//          if (logAction.getCount() > 1) {
+//            logSuppressed = "; suppressed logging for " +
+//                (logAction.getCount() - 1) + " edit reads";
+//          }
+//          LOG.info("Reading " + editIn + " expecting start txid #" +
+//              (lastAppliedTxId + 1) + logSuppressed);
+//        }
+//        try {
+//          remainingReadTxns -= loader.loadFSEdits(editIn, lastAppliedTxId + 1,
+//                  remainingReadTxns, startOpt, recovery);
+//        } finally {
+//          // Update lastAppliedTxId even in case of error, since some ops may
+//          // have been successfully applied before the error.
+//          lastAppliedTxId = loader.getLastAppliedTxId();
+//        }
+//        // If we are in recovery mode, we may have skipped over some txids.
+//        if (editIn.getLastTxId() != HdfsServerConstants.INVALID_TXID
+//            && recovery != null) {
+//          lastAppliedTxId = editIn.getLastTxId();
+//        }
+//        if (remainingReadTxns <= 0) {
+//          break;
+//        }
       }
     } finally {
       FSEditLog.closeAllStreams(editStreams);

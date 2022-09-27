@@ -31,13 +31,18 @@ public class CheckpointFaultInjector {
   public static CheckpointFaultInjector getInstance() {
     return instance;
   }
+  public static boolean enabled = false;
 
   public static void set(CheckpointFaultInjector instance) {
     CheckpointFaultInjector.instance = instance;
   }
   public void beforeGetImageSetsHeaders() throws IOException {}
   public void afterSecondaryCallsRollEditLog() throws IOException {}
-  public void duringMerge() throws IOException {}
+  public void duringMerge() throws IOException {
+    if (enabled) {
+      throw new IOException("injected IOException");
+    }
+  }
   public void afterSecondaryUploadsNewImage() throws IOException {}
   public void aboutToSendFile(File localfile) throws IOException {}
 

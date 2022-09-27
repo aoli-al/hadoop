@@ -227,16 +227,79 @@ public class TestCheckpoint {
     nnStorage.close();
   }
 
+  public static void main(String[] args) throws IOException {
+
+
+    TestCheckpoint checkpoint = new TestCheckpoint();
+    checkpoint.setUp();
+    checkpoint.testReloadOnEditReplayFailure();
+  }
+
+  public static void main2(String[] args) throws IOException {
+    Configuration conf = new HdfsConfiguration();
+    FSDataOutputStream fos = null;
+    SecondaryNameNode secondary = null;
+    MiniDFSCluster cluster = null;
+    FileSystem fs = null;
+    int totalIter = 100;
+
+    try {
+      cluster = new MiniDFSCluster.Builder(conf).numDataNodes(numDatanodes)
+              .build();
+      cluster.waitActive();
+      fs = cluster.getFileSystem();
+      secondary = startSecondaryNameNode(conf);
+      fos = fs.create(new Path("tmpfile0"));
+      for (int i = 0; i < totalIter; i++) {
+        fos.write(new byte[] { 0, 1, 2, 3 });
+        fos.hsync();
+      }
+      secondary.doCheckpoint();
+      for (int i = 0; i < totalIter; i++) {
+        fos.write(new byte[] { 0, 1, 2, 3 });
+        fos.hsync();
+      }
+      CheckpointFaultInjector.enabled = true;
+
+
+      try {
+        secondary.doCheckpoint();
+        fail("Fault injection failed.");
+      } catch (IOException ioe) {
+        // This is expected.
+      }
+      CheckpointFaultInjector.enabled = false;
+
+      // The error must be recorded, so next checkpoint will reload image.
+      for (int i = 0; i < totalIter; i++) {
+        fos.write(new byte[] { 0, 1, 2, 3 });
+        fos.hsync();
+      }
+      assertTrue("Another checkpoint should have reloaded image",
+              secondary.doCheckpoint());
+    } finally {
+      if (fs != null) {
+        fs.close();
+      }
+      cleanup(secondary);
+      secondary = null;
+      cleanup(cluster);
+      cluster = null;
+    }
+
+  }
+
   /*
    * Simulate exception during edit replay.
    */
-  @Test(timeout=30000)
+  @Test
   public void testReloadOnEditReplayFailure () throws IOException {
     Configuration conf = new HdfsConfiguration();
     FSDataOutputStream fos = null;
     SecondaryNameNode secondary = null;
     MiniDFSCluster cluster = null;
     FileSystem fs = null;
+    int totalIter = 10;
 
     try {
       cluster = new MiniDFSCluster.Builder(conf).numDataNodes(numDatanodes)
@@ -245,10 +308,15 @@ public class TestCheckpoint {
       fs = cluster.getFileSystem();
       secondary = startSecondaryNameNode(conf);
       fos = fs.create(new Path("tmpfile0"));
-      fos.write(new byte[] { 0, 1, 2, 3 });
+      for (int i = 0; i < totalIter; i++) {
+        fos.write(new byte[] { 0, 1, 2, 3 });
+        fos.hsync();
+      }
       secondary.doCheckpoint();
-      fos.write(new byte[] { 0, 1, 2, 3 });
-      fos.hsync();
+      for (int i = 0; i < totalIter; i++) {
+        fos.write(new byte[] { 0, 1, 2, 3 });
+        fos.hsync();
+      }
 
       // Cause merge to fail in next checkpoint.
       Mockito.doThrow(new IOException(
@@ -264,9 +332,10 @@ public class TestCheckpoint {
       Mockito.reset(faultInjector);
  
       // The error must be recorded, so next checkpoint will reload image.
-      fos.write(new byte[] { 0, 1, 2, 3 });
-      fos.hsync();
-      
+      for (int i = 0; i < totalIter; i++) {
+        fos.write(new byte[] { 0, 1, 2, 3 });
+        fos.hsync();
+      }
       assertTrue("Another checkpoint should have reloaded image",
           secondary.doCheckpoint());
     } finally {
@@ -1002,7 +1071,7 @@ public class TestCheckpoint {
       throw new IOException("Cannot create directory " + dir);
   }
   
-  SecondaryNameNode startSecondaryNameNode(Configuration conf
+  static SecondaryNameNode startSecondaryNameNode(Configuration conf
                                           ) throws IOException {
     conf.set(DFSConfigKeys.DFS_NAMENODE_SECONDARY_HTTP_ADDRESS_KEY, "0.0.0.0:0");
     return new SecondaryNameNode(conf);
