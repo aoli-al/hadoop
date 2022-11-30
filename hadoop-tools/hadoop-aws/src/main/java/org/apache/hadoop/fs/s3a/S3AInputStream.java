@@ -467,21 +467,21 @@ public class S3AInputStream extends FSInputStream implements  CanSetReadahead,
     int byteRead = invoker.retry("read", pathStr, true,
         () -> {
           int b;
-          // When exception happens before re-setting wrappedStream in "reopen" called
-          // by onReadFailure, then wrappedStream will be null. But the **retry** may
-          // re-execute this block and cause NPE if we don't check wrappedStream
-          if (wrappedStream == null) {
-            reopen("failure recovery", getPos(), 1, false);
-          }
+//          // When exception happens before re-setting wrappedStream in "reopen" called
+//          // by onReadFailure, then wrappedStream will be null. But the **retry** may
+//          // re-execute this block and cause NPE if we don't check wrappedStream
+//          if (wrappedStream == null) {
+//            reopen("failure recovery", getPos(), 1, false);
+//          }
           try {
             b = wrappedStream.read();
           } catch (EOFException e) {
             return -1;
           } catch (SocketTimeoutException e) {
-            onReadFailure(e, true);
+            onReadFailure(e, 1, true);
             throw e;
           } catch (IOException e) {
-            onReadFailure(e, false);
+            onReadFailure(e, 1, false);
             throw e;
           }
           return b;
@@ -504,7 +504,8 @@ public class S3AInputStream extends FSInputStream implements  CanSetReadahead,
    * @param ioe exception caught.
    */
   @Retries.OnceTranslated
-  private void onReadFailure(IOException ioe, boolean forceAbort) {
+  private void onReadFailure(IOException ioe, int length, boolean forceAbort)
+          throws IOException {
     if (LOG.isDebugEnabled()) {
       LOG.debug("Got exception while trying to read from stream {}, " +
           "client: {} object: {}, trying to recover: ",
@@ -515,7 +516,8 @@ public class S3AInputStream extends FSInputStream implements  CanSetReadahead,
           uri, client, object);
     }
     streamStatistics.readException();
-    closeStream("failure recovery", forceAbort, false);
+    reopen("failure recovery", pos, length, forceAbort);
+//    closeStream("failure recovery", forceAbort, false);
   }
 
   /**
@@ -554,22 +556,22 @@ public class S3AInputStream extends FSInputStream implements  CanSetReadahead,
     int bytesRead = invoker.retry("read", pathStr, true,
         () -> {
           int bytes;
-          // When exception happens before re-setting wrappedStream in "reopen" called
-          // by onReadFailure, then wrappedStream will be null. But the **retry** may
-          // re-execute this block and cause NPE if we don't check wrappedStream
-          if (wrappedStream == null) {
-            reopen("failure recovery", getPos(), 1, false);
-          }
+//          // When exception happens before re-setting wrappedStream in "reopen" called
+//          // by onReadFailure, then wrappedStream will be null. But the **retry** may
+//          // re-execute this block and cause NPE if we don't check wrappedStream
+//          if (wrappedStream == null) {
+//            reopen("failure recovery", getPos(), 1, false);
+//          }
           try {
             bytes = wrappedStream.read(buf, off, len);
           } catch (EOFException e) {
             // the base implementation swallows EOFs.
             return -1;
           } catch (SocketTimeoutException e) {
-            onReadFailure(e, true);
+            onReadFailure(e, len, true);
             throw e;
           } catch (IOException e) {
-            onReadFailure(e, false);
+            onReadFailure(e, len, false);
             throw e;
           }
           return bytes;

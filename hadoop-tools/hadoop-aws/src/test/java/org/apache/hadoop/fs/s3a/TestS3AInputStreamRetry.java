@@ -174,11 +174,12 @@ public class TestS3AInputStreamRetry extends AbstractS3AMockTest {
   private S3Object getMockedS3Object() {
     S3ObjectInputStream objectInputStreamBad1 = getMockedInputStream(true);
     S3ObjectInputStream objectInputStreamBad2 = getMockedInputStream(true);
+    S3ObjectInputStream objectInputStreamBad3 = getMockedInputStream(true);
     S3ObjectInputStream objectInputStreamGood = getMockedInputStream(false);
 
     return new S3Object() {
       private final S3ObjectInputStream[] inputStreams =
-          {objectInputStreamBad1, objectInputStreamBad2, objectInputStreamGood};
+          {objectInputStreamBad1, objectInputStreamBad2, objectInputStreamBad3, objectInputStreamGood};
 
       private Integer inputStreamIndex = 0;
 
