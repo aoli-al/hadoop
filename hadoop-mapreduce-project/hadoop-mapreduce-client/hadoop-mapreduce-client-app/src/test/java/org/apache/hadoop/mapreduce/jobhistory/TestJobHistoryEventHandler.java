@@ -38,6 +38,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.HashMap;
 
+import org.apache.hadoop.classification.VisibleForTesting;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.CommonConfigurationKeysPublic;
 import org.apache.hadoop.fs.FileContext;
@@ -159,6 +160,48 @@ public class TestJobHistoryEventHandler {
     } finally {
       jheh.stop();
       verify(mockWriter).close();
+    }
+  }
+
+
+  // verify following events with correct submitTime and startTime
+  @Test (timeout=50000)
+  public void testCachedAMStartedEvent() throws Exception {
+    TestParams t = new TestParams();
+    Configuration conf = new Configuration();
+
+    JHEvenHandlerForTest realJheh =
+            new JHEvenHandlerForTest(t.mockAppContext, 0);
+    JHEvenHandlerForTest jheh = spy(realJheh);
+    jheh.init(conf);
+
+    EventWriter mockWriter = null;
+    try {
+      jheh.start();
+      AMStartedEvent cachedAMStartedEvent = new AMStartedEvent(
+              t.appAttemptId, 200, t.containerId, "nmhost", 3000, 4000, 100);
+      // set a cached amStartedEvent mock as previous event.
+      jheh.setAMStartedEvent(cachedAMStartedEvent);
+
+      // handle job failed event.
+      handleEvent(jheh, new JobHistoryEvent(t.jobId,
+              new JobUnsuccessfulCompletionEvent(TypeConverter.fromYarn(t.jobId), 0L,
+                      0, 0, 0, 0, 0, 0,
+                      JobStateInternal.FAILED.toString())));
+
+      JobHistoryEventHandler.MetaInfo mi =
+              JobHistoryEventHandler.fileMap.get(t.jobId);
+      Assert.assertEquals(mi.getJobIndexInfo().getSubmitTime(), 100);
+      Assert.assertEquals(mi.getJobIndexInfo().getJobStartTime(), 200);
+      Assert.assertEquals(mi.getJobSummary().getJobSubmitTime(), 100);
+      Assert.assertEquals(mi.getJobSummary().getJobLaunchTime(), 200);
+
+      verify(jheh, times(1)).processDoneFiles(t.jobId);
+
+      mockWriter = jheh.getEventWriter();
+      verify(mockWriter, times(1)).write(any(HistoryEvent.class));
+    } finally {
+      jheh.stop();
     }
   }
 
@@ -1085,6 +1128,7 @@ public class TestJobHistoryEventHandler {
 class JHEvenHandlerForTest extends JobHistoryEventHandler {
 
   private EventWriter eventWriter;
+  private AMStartedEvent previousAMStartedEvent = null;
   private boolean mockHistoryProcessing = true;
   private DrainDispatcher dispatcher;
   public JHEvenHandlerForTest(AppContext context, int startCount) {
@@ -1102,6 +1146,11 @@ class JHEvenHandlerForTest extends JobHistoryEventHandler {
   protected void serviceInit(Configuration conf) throws Exception {
     super.serviceInit(conf);
 
+  }
+
+  @VisibleForTesting
+  protected void setAMStartedEvent(AMStartedEvent event) {
+    previousAMStartedEvent = event;
   }
 
   @Override
