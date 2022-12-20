@@ -61,3 +61,8 @@ report.html
 
 
 .mvn
+instrumented/
+instrumented_classes/
+dynamic-results/
+static-results/
+origin_classes/
