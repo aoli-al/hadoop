@@ -45,7 +45,9 @@ def static():
     #                  f"-javaagent:{RUNTIME_JAR_PATH}=static:{INSTRUMENTATION_CLASSPATH}",
     #                  f"-agentpath:{NATIVE_LIB_PATH}=exchain:Lorg/apache/hadoop/hdfs",
     #                  "org.apache.hadoop.hdfs.server.namenode.TestCheckpoint"])
-    subprocess.call(["./gradlew", "static-analyzer:run", f"--args={ORIGIN_CLASSPATH} {DIR}/static-results {ORIGIN_CLASSPATH}"], cwd=os.path.join(DIR, "../.."))
+    args = ["./gradlew", "static-analyzer:run", f"--args={ORIGIN_CLASSPATH} {DIR}/static-results {ORIGIN_CLASSPATH}"]
+    print(args)
+    subprocess.call(args, cwd=os.path.join(DIR, "../.."))
 
 
 @main.command(name="dynamic")
