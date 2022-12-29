@@ -39,12 +39,12 @@ def origin(debug: bool):
 
 @main.command(name="static")
 def static():
-    # subprocess.call(["java",
-    #                  "-cp",
-    #                  "hadoop-hdfs-project/hadoop-hdfs/target/hadoop-hdfs-3.4.0-SNAPSHOT-test-jar-with-dependencies.jar",
-    #                  f"-javaagent:{RUNTIME_JAR_PATH}=static:{INSTRUMENTATION_CLASSPATH}",
-    #                  f"-agentpath:{NATIVE_LIB_PATH}=exchain:Lorg/apache/hadoop/hdfs",
-    #                  "org.apache.hadoop.hdfs.server.namenode.TestCheckpoint"])
+    subprocess.call(["java",
+                     "-cp",
+                     "hadoop-hdfs-project/hadoop-hdfs/target/hadoop-hdfs-3.4.0-SNAPSHOT-test-jar-with-dependencies.jar",
+                     f"-javaagent:{RUNTIME_JAR_PATH}=static:{INSTRUMENTATION_CLASSPATH}",
+                     f"-agentpath:{NATIVE_LIB_PATH}=exchain:Lorg/apache/hadoop/hdfs",
+                     "org.apache.hadoop.hdfs.server.namenode.TestCheckpoint"])
     args = ["./gradlew", "static-analyzer:run", f"--args={ORIGIN_CLASSPATH} {DIR}/static-results {ORIGIN_CLASSPATH}"]
     print(args)
     subprocess.call(args, cwd=os.path.join(DIR, "../.."))
