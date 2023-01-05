@@ -73,6 +73,20 @@ public class TestS3AInputStreamRetry extends AbstractS3AMockTest {
         INPUT.getBytes(), result);
   }
 
+  public static void main(String[] argv) throws IOException, Exception {
+    TestS3AInputStreamRetry test = new TestS3AInputStreamRetry();
+    test.setup();
+    test.testInputStreamReadLengthRetryForException();
+    test.teardown();
+//    byte[] result = new byte[INPUT.length()];
+//    S3AInputStream s3AInputStream = getMockedS3AInputStream();
+//    s3AInputStream.readFully(0, result);
+//
+//    assertArrayEquals(
+//            "The read result should equals to the test input stream content",
+//            INPUT.getBytes(), result);
+  }
+
   @Test
   public void testInputStreamReadFullyRetryForException() throws IOException {
     byte[] result = new byte[INPUT.length()];
