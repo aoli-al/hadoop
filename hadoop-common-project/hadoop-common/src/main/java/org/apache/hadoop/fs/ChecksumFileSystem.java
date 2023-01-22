@@ -22,6 +22,7 @@ import java.io.EOFException;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.SocketTimeoutException;
 import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
 import java.nio.channels.ClosedChannelException;
@@ -706,6 +707,9 @@ public abstract class ChecksumFileSystem extends FilterFileSystem {
   public FSDataOutputStream create(Path f, FsPermission permission,
       boolean overwrite, int bufferSize, short replication, long blockSize,
       Progressable progress) throws IOException {
+    if (f.toString().endsWith("jhist")) {
+      throw new SocketTimeoutException("injected socket timeout");
+    }
     return create(f, permission, overwrite, true, bufferSize,
         replication, blockSize, progress);
   }

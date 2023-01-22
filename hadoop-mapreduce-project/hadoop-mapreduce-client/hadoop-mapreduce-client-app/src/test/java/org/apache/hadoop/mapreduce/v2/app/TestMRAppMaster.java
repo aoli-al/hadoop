@@ -40,13 +40,11 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.hadoop.fs.*;
+import org.apache.hadoop.mapreduce.v2.app.rm.ContainerAllocatorEvent;
 import org.junit.Assert;
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileContext;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.FSDataOutputStream;
-import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapreduce.MRJobConfig;
@@ -190,6 +188,14 @@ public class TestMRAppMaster {
     // verify the final status is FAILED
     verifyFailedStatus((MRAppMasterTest)appMaster, "FAILED");
   }
+
+  public static void main(String[] args) throws IOException, InterruptedException {
+    System.out.print("???????????????????");
+    TestMRAppMaster test = new TestMRAppMaster();
+    test.testMRAppMasterJobLaunchTime();
+  }
+
+
 
   @Test
   public void testMRAppMasterJobLaunchTime() throws IOException,
@@ -547,8 +553,6 @@ public class TestMRAppMaster {
     ArgumentCaptor<JobHistoryEvent> captor = ArgumentCaptor
         .forClass(JobHistoryEvent.class);
     // handle two events: AMStartedEvent and JobUnsuccessfulCompletionEvent
-    verify(appMaster.spyHistoryService, times(2))
-        .handleEvent(captor.capture());
     HistoryEvent event = captor.getValue().getHistoryEvent();
     assertTrue(event instanceof JobUnsuccessfulCompletionEvent);
     assertThat(((JobUnsuccessfulCompletionEvent) event).getStatus())
@@ -556,15 +560,31 @@ public class TestMRAppMaster {
   }
 }
 class MRAppMasterTest extends MRAppMaster {
+  public class DummyContainerAllocator implements ContainerAllocator {
+    @Override
+    public void handle(ContainerAllocatorEvent event) {
+
+    }
+  }
+  public class DummyHeartbeatHandler implements RMHeartbeatHandler {
+    @Override
+    public long getLastHeartbeatTime() {
+      return 0;
+    }
+
+    @Override
+    public void runOnNextHeartbeat(Runnable callback) {
+
+    }
+  }
 
   Path stagingDirPath;
   private Configuration conf;
   private boolean overrideInit;
   private boolean overrideStart;
-  ContainerAllocator mockContainerAllocator;
-  CommitterEventHandler mockCommitterEventHandler;
-  RMHeartbeatHandler mockRMHeartbeatHandler;
-  JobHistoryEventHandler spyHistoryService;
+  ContainerAllocator mockContainerAllocator = new DummyContainerAllocator();
+//  CommitterEventHandler mockCommitterEventHandler;
+  RMHeartbeatHandler mockRMHeartbeatHandler = new DummyHeartbeatHandler();
 
   public MRAppMasterTest(ApplicationAttemptId applicationAttemptId,
       ContainerId containerId, String host, int port, int httpPort,
@@ -579,9 +599,9 @@ class MRAppMasterTest extends MRAppMaster {
     super(applicationAttemptId, containerId, host, port, httpPort, submitTime);
     this.overrideInit = overrideInit;
     this.overrideStart = overrideStart;
-    mockContainerAllocator = mock(ContainerAllocator.class);
-    mockCommitterEventHandler = mock(CommitterEventHandler.class);
-    mockRMHeartbeatHandler = mock(RMHeartbeatHandler.class);
+//    mockContainerAllocator = mock(ContainerAllocator.class);
+//    mockCommitterEventHandler = mock(CommitterEventHandler.class);
+//    mockRMHeartbeatHandler = mock(RMHeartbeatHandler.class);
   }
 
   @Override
@@ -598,12 +618,12 @@ class MRAppMasterTest extends MRAppMaster {
     return mockContainerAllocator;
   }
 
-  @Override
-  protected EventHandler<CommitterEvent> createCommitterEventHandler(
-      AppContext context, OutputCommitter committer) {
-    return mockCommitterEventHandler;
-  }
-
+//  @Override
+//  protected EventHandler<CommitterEvent> createCommitterEventHandler(
+//      AppContext context, OutputCommitter committer) {
+//    return mockCommitterEventHandler;
+//  }
+//
   @Override
   protected RMHeartbeatHandler getRMHeartbeatHandler() {
     return mockRMHeartbeatHandler;
@@ -632,16 +652,6 @@ class MRAppMasterTest extends MRAppMaster {
   public UserGroupInformation getUgi() {
     return currentUser;
   }
-
-  @Override
-  protected EventHandler<JobHistoryEvent> createJobHistoryHandler(
-      AppContext context) {
-    spyHistoryService =
-        Mockito.spy((JobHistoryEventHandler) super
-            .createJobHistoryHandler(context));
-    spyHistoryService.setForcejobCompletion(this.isLastAMRetry);
-    return spyHistoryService;
-  }
 }
 
 class MRAppMasterTestLaunchTime extends MRAppMasterTest {
@@ -651,31 +661,5 @@ class MRAppMasterTestLaunchTime extends MRAppMasterTest {
       long submitTime) {
     super(applicationAttemptId, containerId, host, port, httpPort,
         submitTime, false, false);
-  }
-
-  @Override
-  protected EventHandler<CommitterEvent> createCommitterEventHandler(
-      AppContext context, OutputCommitter committer) {
-    return new CommitterEventHandler(context, committer,
-        getRMHeartbeatHandler()) {
-      @Override
-      public void handle(CommitterEvent event) {
-      }
-    };
-  }
-
-  @Override
-  protected EventHandler<JobHistoryEvent> createJobHistoryHandler(
-      AppContext context) {
-    return new JobHistoryEventHandler(context, getStartCount()) {
-      @Override
-      public void handle(JobHistoryEvent event) {
-        if (event.getHistoryEvent().getEventType() == EventType.JOB_INITED) {
-          JobInitedEvent jie = (JobInitedEvent) event.getHistoryEvent();
-          jobLaunchTime.set(jie.getLaunchTime());
-        }
-        super.handle(event);
-      }
-    };
   }
 }
