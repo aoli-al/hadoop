@@ -110,6 +110,7 @@ def dynamic(debug: bool):
         cmd.insert(1, "-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005")
     cmd = run_command(cmd)
     post()
+    cmd.communicate()
     #  cmd.kill()
 
 
