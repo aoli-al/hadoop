@@ -47,7 +47,7 @@ def static():
                      f"-javaagent:{RUNTIME_JAR_PATH}=static:{INSTRUMENTATION_CLASSPATH}",
                      f"-agentpath:{NATIVE_LIB_PATH}=exchain:Lorg/apache/hadoop/hdfs",
                      TEST_CLASS])
-    args = ["./gradlew", "static-analyzer:run", f"--args={ORIGIN_CLASSPATH} {DIR}/static-results {ORIGIN_CLASSPATH}"]
+    args = ["./gradlew", "static-analyzer:run", f"--args={ORIGIN_CLASSPATH} {DIR}/static-results"]
     print(args)
     subprocess.call(args, cwd=os.path.join(DIR, "../.."))
 
