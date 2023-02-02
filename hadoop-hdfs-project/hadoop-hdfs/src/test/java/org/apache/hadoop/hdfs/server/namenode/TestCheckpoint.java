@@ -232,7 +232,12 @@ public class TestCheckpoint {
 
     TestCheckpoint checkpoint = new TestCheckpoint();
     checkpoint.setUp();
-    checkpoint.testReloadOnEditReplayFailure();
+    try {
+      checkpoint.testReloadOnEditReplayFailure();
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+//    checkpoint.
   }
 
   public static void main2(String[] args) throws IOException {
