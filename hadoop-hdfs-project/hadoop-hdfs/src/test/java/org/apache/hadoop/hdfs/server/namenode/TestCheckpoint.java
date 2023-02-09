@@ -239,61 +239,6 @@ public class TestCheckpoint {
     }
 //    checkpoint.
   }
-
-  public static void main2(String[] args) throws IOException {
-    Configuration conf = new HdfsConfiguration();
-    FSDataOutputStream fos = null;
-    SecondaryNameNode secondary = null;
-    MiniDFSCluster cluster = null;
-    FileSystem fs = null;
-    int totalIter = 100;
-
-    try {
-      cluster = new MiniDFSCluster.Builder(conf).numDataNodes(numDatanodes)
-              .build();
-      cluster.waitActive();
-      fs = cluster.getFileSystem();
-      secondary = startSecondaryNameNode(conf);
-      fos = fs.create(new Path("tmpfile0"));
-      for (int i = 0; i < totalIter; i++) {
-        fos.write(new byte[] { 0, 1, 2, 3 });
-        fos.hsync();
-      }
-      secondary.doCheckpoint();
-      for (int i = 0; i < totalIter; i++) {
-        fos.write(new byte[] { 0, 1, 2, 3 });
-        fos.hsync();
-      }
-      CheckpointFaultInjector.enabled = true;
-
-
-      try {
-        secondary.doCheckpoint();
-        fail("Fault injection failed.");
-      } catch (IOException ioe) {
-        // This is expected.
-      }
-      CheckpointFaultInjector.enabled = false;
-
-      // The error must be recorded, so next checkpoint will reload image.
-      for (int i = 0; i < totalIter; i++) {
-        fos.write(new byte[] { 0, 1, 2, 3 });
-        fos.hsync();
-      }
-      assertTrue("Another checkpoint should have reloaded image",
-              secondary.doCheckpoint());
-    } finally {
-      if (fs != null) {
-        fs.close();
-      }
-      cleanup(secondary);
-      secondary = null;
-      cleanup(cluster);
-      cluster = null;
-    }
-
-  }
-
   /*
    * Simulate exception during edit replay.
    */
@@ -340,7 +285,66 @@ public class TestCheckpoint {
       for (int i = 0; i < totalIter; i++) {
         fos.write(new byte[] { 0, 1, 2, 3 });
         fos.hsync();
+        fos.hflush();
       }
+      for (int i = 0; i < 10; i++) {
+        NNStorage storage = secondary.getFSImage().storage;
+        File currentDir = FSImageTestUtil.
+                getCurrentDirs(storage, NameNodeDirType.IMAGE).get(0);
+        // Create a stale fsimage.ckpt file
+        File staleCkptFile = new File(currentDir.getPath() +
+                "/fsimage.ckpt_0000000000000000002");
+        staleCkptFile.createNewFile();
+        assertTrue(staleCkptFile.exists());
+
+        ArrayList<URI> fsImageDirs = new ArrayList<URI>();
+        ArrayList<URI> editsDirs = new ArrayList<URI>();
+        File filePath =
+                new File(PathUtils.getTestDir(getClass()), "storageDirToCheck");
+        assertTrue("Couldn't create directory storageDirToCheck",
+                filePath.exists() || filePath.mkdirs());
+        fsImageDirs.add(filePath.toURI());
+        editsDirs.add(filePath.toURI());
+        NNStorage nnStorage = new NNStorage(new HdfsConfiguration(),
+                fsImageDirs, editsDirs);
+        try {
+          assertTrue("List of storage directories didn't have storageDirToCheck.",
+                  nnStorage.getEditsDirectories().iterator().next().
+                          toString().indexOf("storageDirToCheck") != -1);
+          assertTrue("List of removed storage directories wasn't empty",
+                  nnStorage.getRemovedStorageDirs().isEmpty());
+        } finally {
+          // Delete storage directory to cause IOException in writeTransactionIdFile
+          assertTrue("Couldn't remove directory " + filePath.getAbsolutePath(),
+                  filePath.delete());
+        }
+        // Just call writeTransactionIdFile using any random number
+        nnStorage.writeTransactionIdFileToStorage(1);
+        List<StorageDirectory> listRsd = nnStorage.getRemovedStorageDirs();
+        nnStorage.close();
+
+      }
+
+
+        // create a file
+        try {
+          FileSystem fileSys = cluster.getFileSystem();
+          Path p = new Path("t" + 1);
+          DFSTestUtil.createFile(fileSys, p, fileSize, fileSize,
+                  blockSize, (short) 1, seed);
+          LOG.info("--file " + p.toString() + " created");
+          LOG.info("--doing checkpoint");
+          LOG.info("--done checkpoint");
+        } catch (Exception e) {
+
+        }
+
+//      for (int i = 0; i < 10; i++) {
+//        cluster.getNameNode().
+//      }
+//      Thread.sleep(30 * 1000);
+
+
       assertTrue("Another checkpoint should have reloaded image",
           secondary.doCheckpoint());
     } finally {
