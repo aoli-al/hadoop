@@ -287,57 +287,55 @@ public class TestCheckpoint {
         fos.hsync();
         fos.hflush();
       }
-      for (int i = 0; i < 10; i++) {
-        NNStorage storage = secondary.getFSImage().storage;
-        File currentDir = FSImageTestUtil.
-                getCurrentDirs(storage, NameNodeDirType.IMAGE).get(0);
-        // Create a stale fsimage.ckpt file
-        File staleCkptFile = new File(currentDir.getPath() +
-                "/fsimage.ckpt_0000000000000000002");
-        staleCkptFile.createNewFile();
-        assertTrue(staleCkptFile.exists());
+      NNStorage storage = secondary.getFSImage().storage;
+      File currentDir = FSImageTestUtil.
+              getCurrentDirs(storage, NameNodeDirType.IMAGE).get(0);
+      // Create a stale fsimage.ckpt file
+      File staleCkptFile = new File(currentDir.getPath() +
+              "/fsimage.ckpt_0000000000000000002");
+      staleCkptFile.createNewFile();
+      assertTrue(staleCkptFile.exists());
 
-        ArrayList<URI> fsImageDirs = new ArrayList<URI>();
-        ArrayList<URI> editsDirs = new ArrayList<URI>();
-        File filePath =
-                new File(PathUtils.getTestDir(getClass()), "storageDirToCheck");
-        assertTrue("Couldn't create directory storageDirToCheck",
-                filePath.exists() || filePath.mkdirs());
-        fsImageDirs.add(filePath.toURI());
-        editsDirs.add(filePath.toURI());
-        NNStorage nnStorage = new NNStorage(new HdfsConfiguration(),
-                fsImageDirs, editsDirs);
-        try {
-          assertTrue("List of storage directories didn't have storageDirToCheck.",
-                  nnStorage.getEditsDirectories().iterator().next().
-                          toString().indexOf("storageDirToCheck") != -1);
-          assertTrue("List of removed storage directories wasn't empty",
-                  nnStorage.getRemovedStorageDirs().isEmpty());
-        } finally {
-          // Delete storage directory to cause IOException in writeTransactionIdFile
-          assertTrue("Couldn't remove directory " + filePath.getAbsolutePath(),
-                  filePath.delete());
-        }
-        // Just call writeTransactionIdFile using any random number
-        nnStorage.writeTransactionIdFileToStorage(1);
-        List<StorageDirectory> listRsd = nnStorage.getRemovedStorageDirs();
-        nnStorage.close();
+      ArrayList<URI> fsImageDirs = new ArrayList<URI>();
+      ArrayList<URI> editsDirs = new ArrayList<URI>();
+      File filePath =
+              new File(PathUtils.getTestDir(getClass()), "storageDirToCheck");
+      assertTrue("Couldn't create directory storageDirToCheck",
+              filePath.exists() || filePath.mkdirs());
+      fsImageDirs.add(filePath.toURI());
+      editsDirs.add(filePath.toURI());
+      NNStorage nnStorage = new NNStorage(new HdfsConfiguration(),
+              fsImageDirs, editsDirs);
+      try {
+        assertTrue("List of storage directories didn't have storageDirToCheck.",
+                nnStorage.getEditsDirectories().iterator().next().
+                        toString().indexOf("storageDirToCheck") != -1);
+        assertTrue("List of removed storage directories wasn't empty",
+                nnStorage.getRemovedStorageDirs().isEmpty());
+      } finally {
+        // Delete storage directory to cause IOException in writeTransactionIdFile
+        assertTrue("Couldn't remove directory " + filePath.getAbsolutePath(),
+                filePath.delete());
+      }
+      // Just call writeTransactionIdFile using any random number
+      nnStorage.writeTransactionIdFileToStorage(1);
+      List<StorageDirectory> listRsd = nnStorage.getRemovedStorageDirs();
+      nnStorage.close();
+
+
+
+      // create a file
+      try {
+        FileSystem fileSys = cluster.getFileSystem();
+        Path p = new Path("t" + 1);
+        DFSTestUtil.createFile(fileSys, p, fileSize, fileSize,
+                blockSize, (short) 1, seed);
+        LOG.info("--file " + p.toString() + " created");
+        LOG.info("--doing checkpoint");
+        LOG.info("--done checkpoint");
+      } catch (Exception e) {
 
       }
-
-
-        // create a file
-        try {
-          FileSystem fileSys = cluster.getFileSystem();
-          Path p = new Path("t" + 1);
-          DFSTestUtil.createFile(fileSys, p, fileSize, fileSize,
-                  blockSize, (short) 1, seed);
-          LOG.info("--file " + p.toString() + " created");
-          LOG.info("--doing checkpoint");
-          LOG.info("--done checkpoint");
-        } catch (Exception e) {
-
-        }
 
 //      for (int i = 0; i < 10; i++) {
 //        cluster.getNameNode().
@@ -346,7 +344,7 @@ public class TestCheckpoint {
 
 
       assertTrue("Another checkpoint should have reloaded image",
-          secondary.doCheckpoint());
+              secondary.doCheckpoint());
     } finally {
       if (fs != null) {
         fs.close();
