@@ -310,6 +310,7 @@ public class TeraSort extends Configured implements Tool {
     job.setOutputValueClass(Text.class);
     job.setInputFormatClass(TeraInputFormat.class);
     job.setOutputFormatClass(TeraOutputFormat.class);
+    long time = System.currentTimeMillis();
     if (useSimplePartitioner) {
       job.setPartitionerClass(SimplePartitioner.class);
     } else {
@@ -333,6 +334,7 @@ public class TeraSort extends Configured implements Tool {
     job.getConfiguration().setInt("dfs.replication", getOutputReplication(job));
     int ret = job.waitForCompletion(true) ? 0 : 1;
     LOG.info("done");
+    System.out.println("run time:" + (System.currentTimeMillis() - time) / 1000.f);
     return ret;
   }
 
