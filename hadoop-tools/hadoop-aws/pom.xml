@@ -347,6 +347,26 @@
         </configuration>
       </plugin>
       <plugin>
+        <groupId>com.gzoltar</groupId>
+        <artifactId>com.gzoltar.maven</artifactId>
+        <version>1.7.4-SNAPSHOT</version>
+        <executions>
+          <execution>
+            <id>pre-unit-test</id>
+            <goals>
+              <goal>prepare-agent</goal>
+            </goals>
+          </execution>
+          <execution>
+            <id>post-unit-test</id>
+            <phase>test</phase>
+            <goals>
+              <goal>fl-report</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
@@ -354,6 +374,13 @@
           <systemPropertyVariables>
             <test.default.timeout>${test.integration.timeout}</test.default.timeout>
           </systemPropertyVariables>
+          <argLine>@{argLine}</argLine>
+          <properties>
+            <property>
+              <name>listener</name>
+              <value>com.gzoltar.internal.core.listeners.JUnitListener</value>
+            </property>
+          </properties>
         </configuration>
       </plugin>
       <plugin>
