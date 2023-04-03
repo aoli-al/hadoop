@@ -129,6 +129,39 @@
   <build>
     <plugins>
       <plugin>
+        <groupId>com.gzoltar</groupId>
+        <artifactId>com.gzoltar.maven</artifactId>
+        <version>1.7.4-SNAPSHOT</version>
+        <executions>
+          <execution>
+            <id>pre-unit-test</id>
+            <goals>
+              <goal>prepare-agent</goal>
+            </goals>
+          </execution>
+          <execution>
+            <id>post-unit-test</id>
+            <phase>test</phase>
+            <goals>
+              <goal>fl-report</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <argLine>@{argLine} -Xmx1G</argLine>
+          <properties>
+            <property>
+              <name>listener</name>
+              <value>com.gzoltar.internal.core.listeners.JUnitListener</value>
+            </property>
+          </properties>
+        </configuration>
+      </plugin>
+      <plugin>
         <artifactId>maven-jar-plugin</artifactId>
         <executions>
           <execution>
